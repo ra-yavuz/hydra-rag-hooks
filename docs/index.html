@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>hydra-rag-hooks: type "rag" in Claude Code or Codex CLI, get a retrieval-augmented answer</title>
+<meta name="description" content="hydra-rag-hooks is a keyword-triggered local-RAG package by Ramazan Yavuz. UserPromptSubmit hooks for both Anthropic's Claude Code AND OpenAI's Codex CLI. apt install wires the hook system-wide for Claude Code; codex plugin add enables it per-user for Codex. Type 'rag <q>' inside any project folder; the hook auto-indexes on first use, then prepends retrieved chunks from a local LanceDB index before the model sees the prompt. Local-first, deterministic, zero token overhead on prompts that do not start with the trigger.">
+<meta name="author" content="Ramazan Yavuz">
+<meta name="keywords" content="claude code, claude code hook, codex cli, openai codex, codex cli plugin, UserPromptSubmit, hydra-rag-hooks, hydra-llm, anthropic claude, openai codex hook, local rag, retrieval augmented generation, multi-cli rag, lancedb, fastembed, embedder, vector search, semantic search, code search, mcp server, ra-yavuz, ramazan yavuz">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ra-yavuz.github.io/hydra-rag-hooks/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="hydra-rag-hooks: type 'rag' in Claude Code or Codex CLI">
+<meta property="og:description" content="UserPromptSubmit hooks for Claude Code AND OpenAI's Codex CLI from one apt-installable package. Type 'rag <q>' inside a project; the hook auto-indexes in the background and prepends retrieved chunks before the model sees the prompt. Same shared index across both CLIs and the sibling hydra-llm project. Local-first, deterministic, zero token overhead on non-RAG prompts.">
+<meta property="og:url" content="https://ra-yavuz.github.io/hydra-rag-hooks/">
+<meta property="og:site_name" content="ra-yavuz">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="hydra-rag-hooks: keyword-triggered local RAG for Claude Code AND Codex CLI">
+<meta name="twitter:description" content="apt install, then 'rag <q>' in Claude Code or Codex CLI. Auto-indexes on first use; retrieves on the next call. One shared index across both CLIs and hydra-llm.">
+<meta property="og:image" content="https://ra-yavuz.github.io/hydra-rag-hooks/logo-icon.png">
+<meta name="twitter:image" content="https://ra-yavuz.github.io/hydra-rag-hooks/logo-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #5e5e5e; --bg: #f4f1ec; --card: #ffffff;
+    --line: #d8d4cc; --code-bg: #ebe7e0; --link: #0a4ca8;
+    --apt-bg: #eef2f8; --warn-bg: #fff7d6; --warn-fg: #5a4500; --warn-line: #e8d36b;
+    --accent: #9c2a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #ececec; --muted: #9a9a9a; --bg: #1c1d20; --card: #25272b;
+      --line: #353941; --code-bg: #14151a; --link: #7cb0ff;
+      --apt-bg: #1f242d; --warn-bg: #3a2e00; --warn-fg: #f6e2a4; --warn-line: #6a5500;
+      --accent: #f08585;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); line-height: 1.55;
+         overflow-wrap: break-word; }
+  main { max-width: 820px; margin: 0 auto; padding: 48px 24px 96px; }
+  @media (max-width: 540px) {
+    main { padding: 28px 16px 64px; }
+  }
+  .crumb { font-size: 0.86rem; color: var(--muted); margin: 0 0 18px; }
+  .crumb a { color: var(--muted); }
+  .brand {
+    position: fixed; top: 20px; right: 24px;
+    width: 110px; height: 110px;
+    object-fit: contain; object-position: top right;
+    pointer-events: none; z-index: 10;
+  }
+  @media (prefers-color-scheme: dark) { .brand { filter: invert(1); } }
+  @media (max-width: 720px) { .brand { width: 76px; height: 76px; top: 12px; right: 12px; } }
+  @media (max-width: 480px) { .brand { display: none; } }
+  h1 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.95rem; margin: 0 0 6px; letter-spacing: -0.005em; }
+  p.tag { color: var(--fg); margin: 0 0 8px; font-size: 1.18rem; max-width: 60ch; font-weight: 500; }
+  p.subtag { color: var(--muted); margin: 0 0 22px; font-size: 1rem; max-width: 64ch; }
+  h2 { font-size: 1.25rem; margin: 40px 0 8px; }
+  h3 { font-size: 1.02rem; margin: 24px 0 6px; }
+  a { color: var(--link); }
+  pre { background: var(--code-bg); padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 0.92rem; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+  pre code { padding: 0; background: transparent; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; margin: 18px 0; }
+  .apt { background: var(--apt-bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px solid var(--warn-line); border-radius: 10px; padding: 16px 18px; margin: 18px 0; font-size: 0.94rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--code-bg); color: var(--fg); font-size: 0.78rem; margin-right: 4px; vertical-align: middle; border: 1px solid var(--line); }
+  .pill.new { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.95rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  ul.tight, ol.tight { margin: 6px 0 14px 0; padding-left: 22px; }
+  ul.tight li, ol.tight li { margin: 4px 0; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  @media (max-width: 720px) { .feature-grid { grid-template-columns: 1fr; } }
+  .feature-grid .card { margin: 0; }
+  hr.soft { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+  details { margin: 8px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .demo {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; margin: 16px 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9rem; line-height: 1.6;
+  }
+  .demo .you { color: var(--accent); font-weight: 600; }
+  .demo .hook { color: var(--muted); }
+  .demo .ctx { color: var(--link); }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "hydra-rag-hooks",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux",
+  "description": "A UserPromptSubmit hook for Anthropic's Claude Code that does keyword-triggered local retrieval-augmented generation. apt install wires the hook into Claude Code for every user on the machine. Type 'rag: <question>' inside any project folder; the hook auto-indexes that folder on first use, then retrieves the top-K relevant chunks from a per-folder LanceDB index and prepends them to the prompt as a context block before Claude sees it. Local-first, deterministic, zero token overhead on prompts that do not start with the trigger.",
+  "url": "https://ra-yavuz.github.io/hydra-rag-hooks/",
+  "downloadUrl": "https://github.com/ra-yavuz/hydra-rag-hooks/releases",
+  "softwareVersion": "0.1.0",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": { "@type": "Person", "name": "Ramazan Yavuz", "url": "https://ra-yavuz.github.io/" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "keywords": "claude code, claude code hook, rag, retrieval augmented generation, lancedb, fastembed, anthropic, local-first, UserPromptSubmit"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is hydra-rag-hooks?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "hydra-rag-hooks is a UserPromptSubmit hook for Anthropic's Claude Code CLI that does keyword-triggered local retrieval-augmented generation. After apt install, every user on the machine has the hook wired into Claude Code (via /etc/claude-code/managed-settings.json). Type 'rag: <question>' inside a project folder; the hook auto-indexes that folder in the background on first use, then retrieves the top relevant chunks from a per-folder LanceDB index and prepends them to the prompt as a context block before Claude sees it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is this different from MCP-based local RAG servers like shinpr/mcp-local-rag, ItMeDiaTech/rag-cli, or zilliztech/claude-context?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MCP-based RAG lets the model decide when to retrieve. hydra-rag-hooks is keyword-triggered: you type 'rag:' and retrieval runs, otherwise the prompt is untouched. Cheaper per turn (no tool-call round trip; no MCP tool definitions in every system prompt), deterministic (no 'why didn't the model use the tool that time' debugging), and composable: you can install both. The hook handles fast known-need lookups; an MCP server can still cover the rare 'Claude noticed I might want to look something up' cases."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to run anything by hand to set it up?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. apt install hydra-rag-hooks merges a hook entry into /etc/claude-code/managed-settings.json (Claude Code's documented system-wide settings file, read for every user on the machine with the highest precedence). Every Claude Code session, current and future user, picks up the hook on its next start. The first 'rag:' inside a project folder fork-detaches a background indexer; the next 'rag:' retrieves normally. No CLI subcommands to learn, no settings to edit, no per-user setup."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it auto-index every folder I open Claude Code in?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Auto-index only kicks in when there is a project marker (.git, pyproject.toml, package.json, Cargo.toml, go.mod, Makefile, etc.) within six ancestors of cwd, and the resolved scope is not $HOME, a direct child of $HOME (~/.config, ~/Downloads), or a system path (/, /etc, /var, /tmp, /usr, /opt, /root, /boot, /sys, /proc, /dev). A 20,000-file / 500MB hard cap aborts auto-index on giant trees. When auto-index is refused, the hook prints a one-line stderr explanation and your prompt passes through unchanged."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it send my code to Anthropic?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, when retrieval triggers, by design. The hook prepends retrieved chunks to the prompt that Claude Code sends to Anthropic, so Claude can answer based on your code. The local index never leaves your machine on its own, but retrieval results do, because that is the entire point. Audit what your project folders contain. The hook never auto-triggers retrieval; the user has to type the keyword."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does it handle changes to files over time?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Each indexed folder has a manifest of (path, size, mtime). On every 'rag:' turn, if the index is more than 5 minutes old, the hook fork-detaches a background incremental refresh. Only files whose (size, mtime) differ from the manifest are re-embedded; unchanged files are skipped. New files are picked up; deleted files are dropped from the index. The current 'rag:' uses whatever's in the index right now (slightly stale is fine), and subsequent turns benefit from the refreshed index."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<main>
+
+<p class="crumb"><a href="https://ra-yavuz.github.io/">ra-yavuz</a> / hydra-rag-hooks</p>
+
+<picture><source srcset="logo.webp" type="image/webp"><img class="brand" src="logo.png" alt="hydra-rag-hooks logo: angle brackets framing a hook that catches a chunk of text"></picture>
+
+<h1>hydra-rag-hooks <span class="pill new">v0.1.0</span></h1>
+<p class="tag">apt install. Type <code>rag &lt;q&gt;</code> in Claude Code OR Codex CLI. Done.</p>
+<p class="subtag">A <code>UserPromptSubmit</code> hook package for both Anthropic's <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> and OpenAI's <a href="https://developers.openai.com/codex">Codex CLI</a>. <code>apt install hydra-rag-hooks</code> wires it into Claude Code for every user on the machine; one <code>codex plugin add</code> per user enables it for Codex. The first <code>rag</code> inside any project folder fork-detaches a background indexer; the next <code>rag &lt;q&gt;</code> retrieves the top relevant chunks from a per-folder <a href="https://lancedb.com">LanceDB</a> index and prepends them to the prompt before the model sees it. Both CLIs share the same <code>.hydra-index/</code> store, the same toggles, and the same MCP server. Local-first, deterministic, zero token overhead on prompts that do not start with the trigger.</p>
+
+<p style="margin: 0 0 22px 0; font-size: 0.94rem; color: var(--muted);">
+  Open source under the <a href="https://github.com/ra-yavuz/hydra-rag-hooks/blob/main/LICENSE">MIT License</a>. Provided as is, no warranty: read the <a href="#disclaimer">full disclaimer</a> before installing. RAG retrieves text from local files and sends it to the third-party LLM provider (Anthropic for Claude Code, OpenAI for Codex CLI) when retrieval triggers.
+</p>
+
+<h2 id="install">Install</h2>
+
+<div class="apt">
+<strong>apt (Debian / Ubuntu, recommended).</strong> One line. Sets up the signed apt repo if not already added, installs the package, merges the Claude Code hook entry into <code>/etc/claude-code/managed-settings.json</code>, and ships the Codex CLI plugin tree at <code>/usr/lib/hydra-rag-hooks/codex-plugin/</code>:
+<pre><code>sudo bash -c 'set -e; install -m 0755 -d /etc/apt/keyrings &amp;&amp; curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg -o /etc/apt/keyrings/ra-yavuz.gpg &amp;&amp; echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" &gt; /etc/apt/sources.list.d/ra-yavuz.list &amp;&amp; apt update &amp;&amp; apt install -y hydra-rag-hooks'</code></pre>
+<p style="margin: 10px 0 0 0; opacity: 0.85;"><strong>Claude Code:</strong> from your next session, <code>rag &lt;question&gt;</code> in any project folder works. No further setup.</p>
+<p style="margin: 10px 0 0 0; opacity: 0.85;"><strong>Codex CLI:</strong> Codex has no managed-settings system-wide path, so each user runs once:</p>
+<pre style="margin-top: 6px;"><code>codex plugin add /usr/lib/hydra-rag-hooks/codex-plugin</code></pre>
+<p style="margin: 10px 0 0 0; opacity: 0.85;">The hook needs <code>fastembed</code>, <code>lancedb</code>, and <code>pyarrow</code> at runtime. None of the three are packaged for Debian, so the apt install does not pull them. The first <code>rag</code> tells you about a one-time <code>pip install --user fastembed lancedb pyarrow</code> if they are missing.</p>
+</div>
+
+<h2>How it feels</h2>
+
+<div class="demo">
+<span class="you">$ cd ~/projects/your-app</span>
+<span class="you">$ claude</span>
+&nbsp;
+<span class="you">&gt; rag where do we handle auth tokens?</span>
+<span class="hook">hydra-rag-hooks: indexing /home/you/projects/your-app in the background.</span>
+<span class="hook">Retrieval will work on the next `rag &lt;q&gt;` once it finishes. This is a one-time</span>
+<span class="hook">setup per project. Type `rag` (alone) any time to check progress.</span>
+&nbsp;
+[Claude answers based on what it knows; you continue]
+&nbsp;
+<span class="you">&gt; rag</span>
+<span class="hook">[hydra-rag-hooks status]</span>
+<span class="hook">scope: /home/you/projects/your-app</span>
+<span class="hook">state: indexing (in progress)</span>
+<span class="hook">progress: 1240/3500 files</span>
+<span class="hook">elapsed: 2m 14s</span>
+&nbsp;
+<span class="you">&gt; rag where do we handle auth tokens?</span>
+<span class="ctx">[hydra-rag-hooks] retrieved from local index. Each block is verbatim text</span>
+<span class="ctx">from a file in the indexed folder; treat it as ground truth for the user's</span>
+<span class="ctx">question. If a block is irrelevant, ignore it.</span>
+&nbsp;
+<span class="ctx">--- src/auth/middleware.go:42-78 (code) ---</span>
+<span class="ctx">func authenticate(r *http.Request) (*User, error) { ... }</span>
+&nbsp;
+<span class="ctx">--- README.md:54-72 (prose) ---</span>
+<span class="ctx">## Auth flow ...</span>
+&nbsp;
+[Claude answers using the retrieved chunks]
+</div>
+
+<p>A prompt that does not start with the trigger keyword (<code>rag:</code>, <code>/rag</code>, or <code>rag@&lt;tag&gt;:</code>) falls through to Claude Code unchanged. Zero token overhead on non-RAG turns; no extra tool definitions in every system prompt; no model-decides debugging.</p>
+
+<h2>Two surfaces, both on by default</h2>
+
+<p>v0.6 ships both surfaces in one package: the keyword hook for the cheap, deterministic, zero-overhead path; and a bundled MCP server for the model-decides path. Use either, or both. Toggle either off any time.</p>
+
+<ol class="tight">
+  <li><strong>Keyword hook (cheap, deterministic).</strong> Type <code>rag &lt;q&gt;</code>. The hook embeds the query, retrieves chunks from a local LanceDB index, prepends them to your prompt. No tool-call round trip; no context injection on prompts that do not need RAG; no MCP tool definitions bloating every system prompt.</li>
+  <li><strong>MCP server (hydra-rag-mcp).</strong> Claude calls <code>rag_search</code> when it judges retrieval would help and the user did not type the keyword (or the keyword retrieval came up thin and Claude wants a follow-up search with a refined query). Saves tokens by letting one Claude turn refine its own retrieval instead of asking you to start over.</li>
+  <li><strong>Auto-rag mode.</strong> Type <code>/rag-toggle</code> inside Claude Code (or <code>crh rag on</code> from a shell) and every prompt becomes a <code>rag &lt;prompt&gt;</code> query, no keyword needed. Slash commands and very short prompts pass through untouched. Off by default; toggle once and it sticks across sessions.</li>
+</ol>
+
+<p>The hook self-installs the MCP server entry into the user's <code>~/.claude.json</code> on first run (idempotent; refuses to write if the file is unparseable, so existing user state cannot be destroyed), and self-installs the <code>/rag-toggle</code> slash command into <code>~/.claude/commands/rag-toggle.md</code> with a clear marker so user edits survive future upgrades. apt postinst handles the system-wide hook wiring; per-user pieces happen lazily on the next hook invocation.</p>
+
+<p>How the original "no MCP" stance from v0.5 evolved: the keyword hook is still the primary, cheapest path. The MCP server is opt-out (default on) because the same retrieval index can answer one extra question Claude sometimes notices it needs without forcing the user to start a new turn. That saves tokens. Compose with model-decides peers like <a href="https://github.com/shinpr/mcp-local-rag">shinpr/mcp-local-rag</a>, <a href="https://github.com/ItMeDiaTech/rag-cli">ItMeDiaTech/rag-cli</a>, or <a href="https://github.com/zilliztech/claude-context">zilliztech/claude-context</a>: they each carry their own indexes and tool definitions, hydra-rag-hooks adds three small ones (<code>rag_search</code>, <code>rag_status</code>, <code>rag_list_stores</code>) on top of the keyword path.</p>
+
+<h2>How indexing handles changes over time</h2>
+
+<ul class="tight">
+  <li><strong>First <code>rag &lt;q&gt;</code> in a folder:</strong> auto-indexes that folder's project root in the background (~30s for a small repo, longer for big ones). Your current turn is not blocked.</li>
+  <li><strong>Subsequent <code>rag &lt;q&gt;</code> turns:</strong> if the index is more than 5 minutes old, the hook fork-detaches an incremental refresh. Only changed files re-embed (matched on size + mtime); typical refresh of a repo where you edited 3 files re-embeds 3 files.</li>
+  <li><strong>Branch switches and bulk changes:</strong> every file's mtime changes, so the next refresh re-embeds everything that switched. Expected behavior; the current <code>rag &lt;q&gt;</code> uses whatever is in the index right now while the refresh runs in the background.</li>
+</ul>
+
+<p>The index lives at <code>&lt;project-root&gt;/.hydra-index/</code>, alongside your code. Copy a project folder to another machine and the index moves with it. Drop the directory to force a full rebuild.</p>
+
+<h2>Auto-index safety rails</h2>
+
+<p>Auto-index is the default but it never indexes places it shouldn't:</p>
+
+<ul class="tight">
+  <li>Hard refusal on <code>$HOME</code>, every direct child of <code>$HOME</code> (<code>~/.config</code>, <code>~/Downloads</code>, <code>~/.ssh</code>), <code>/</code>, <code>/etc</code>, <code>/var</code>, <code>/tmp</code>, <code>/usr</code>, <code>/opt</code>, <code>/root</code>, <code>/boot</code>, <code>/sys</code>, <code>/proc</code>, <code>/dev</code>.</li>
+  <li>Project marker required: a <code>.git</code>, <code>pyproject.toml</code>, <code>package.json</code>, <code>Cargo.toml</code>, <code>go.mod</code>, <code>Makefile</code>, etc. within six ancestors of cwd. Drop a <code>.hydra-rag-allow</code> file to opt in a folder explicitly.</li>
+  <li>Size cap: 20,000 files or 500&nbsp;MB of indexable content. Override with <code>CLAUDE_RAG_HOOK_BYPASS_SIZE_CAP=1</code>.</li>
+  <li>Existing skip-list still applies (lockfiles, binaries, archives, media, model weights, files &gt;1&nbsp;MB, <code>node_modules</code>, <code>.venv</code>, etc.).</li>
+</ul>
+
+<p>When auto-index is refused, the hook prints a one-line stderr explanation and your prompt passes through unchanged. The hook never fails silently and never indexes silently.</p>
+
+<h2>Trigger forms</h2>
+
+<table>
+  <thead><tr><th>Trigger</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>rag &lt;text&gt;</code></td><td>Retrieve from the project root's index. Default form. Auto-indexes on first use.</td></tr>
+    <tr><td><code>rag: &lt;text&gt;</code></td><td>Same. The colon form is equivalent and predates the no-colon form.</td></tr>
+    <tr><td><code>/rag &lt;text&gt;</code></td><td>Same, slash-command flavour.</td></tr>
+    <tr><td><code>rag</code> (alone)</td><td>Print index status. If no index exists yet, kick off indexing. <strong>Ends the turn without invoking the model</strong> (zero tokens). Same for <code>rag status</code> and <code>rag:</code>.</td></tr>
+    <tr><td><code>/rag-toggle</code></td><td>Toggle auto-rag mode (every prompt becomes a <code>rag</code> query, no keyword needed). Different from bare <code>rag</code>, which is the status report. Equivalent shell command: <code>crh rag toggle</code>.</td></tr>
+    <tr><td><code>rag@&lt;tag&gt;: &lt;text&gt;</code></td><td>Federate retrieval across every store carrying <code>&lt;tag&gt;</code>. Bypasses auto-index; you have to have indexed the stores.</td></tr>
+    <tr><td><code>rag@all: &lt;text&gt;</code></td><td>Federate across every registered store.</td></tr>
+  </tbody>
+</table>
+
+<p>The bare <code>rag</code> form is a CLI command, not a question for Claude. The hook returns a <code>decision: "block"</code> envelope so the model is not invoked: the user sees the status text and the turn ends with zero tokens spent. If no index exists yet, the same bare <code>rag</code> also fork-detaches the indexer.</p>
+
+<p>The no-colon form (<code>lax_trigger</code>) is on by default. Set <code>lax_trigger: false</code> in <code>~/.config/hydra-llm/rag-hooks/config.yaml</code> to require the colon if you hit a false positive.</p>
+
+<h2>Auto-rag mode and MCP toggles</h2>
+
+<p>Two persistent toggles live in <code>$XDG_STATE_HOME/hydra-rag-hooks/toggles.json</code>:</p>
+
+<ul class="tight">
+  <li><strong>auto-rag</strong> (default off): every prompt becomes a <code>rag</code> query, no keyword needed. Slash commands and very short prompts pass through untouched. Toggle inside Claude Code with <code>/rag-toggle</code>, or from a shell with <code>crh rag on|off|toggle|status</code>.</li>
+  <li><strong>mcp</strong> (default on): the bundled MCP server is wired into <code>~/.claude.json</code> so Claude can call <code>rag_search</code> when it judges retrieval would help. Turn off with <code>crh mcp off</code>; the entry stays in <code>~/.claude.json</code> with a <code>CLAUDE_RAG_MCP_DISABLED=1</code> env block, so the toggle is fully reversible from the same place. Turn on with <code>crh mcp on</code>.</li>
+</ul>
+
+<p>The MCP server exposes three tools: <code>rag_search(query, scope?, top_k?, tag?)</code> for retrieval, <code>rag_status(scope?)</code> for index health, <code>rag_list_stores()</code> for an inventory of registered project indexes. The tool descriptions tell Claude when to call them and when to skip the round trip.</p>
+
+<h2>What you actually get</h2>
+
+<div class="feature-grid">
+
+  <div class="card">
+    <h3 style="margin-top:0">Zero-touch install</h3>
+    <p>apt postinst merges a hook entry into <code>/etc/claude-code/managed-settings.json</code>, the documented system-wide settings file Claude Code reads with the highest precedence for every user. No CLI subcommands, no settings to edit, no per-user setup. <code>apt remove</code> takes the entry out.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Auto-index on first use</h3>
+    <p>The first <code>rag &lt;q&gt;</code> in a project folder fork-detaches a background indexer; the next one retrieves normally. Subsequent turns trigger throttled incremental refreshes so the index stays current as you edit.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Keyword-triggered, deterministic</h3>
+    <p>Type <code>rag</code>, get retrieval. Don't, and the hook is a no-op. No model-decides debugging, no MCP tool definitions in every system prompt, no per-turn round trip on prompts that do not need RAG.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Per-folder LanceDB index</h3>
+    <p>Stored at <code>&lt;project-root&gt;/.hydra-index/</code> alongside your code. Copy a project to another machine, the index comes along. Re-running incrementally: only changed files re-embed.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Pluggable embedders</h3>
+    <p>Default <a href="https://github.com/qdrant/fastembed">fastembed</a> with <code>BAAI/bge-small-en-v1.5</code> since v0.5.0 (33M params, 384 dim, ~67MB on disk). Override to <code>nomic-ai/nomic-embed-text-v1.5</code> (137M params, 768 dim, 8192-token context) or any OpenAI-compatible <code>/v1/embeddings</code> server, or reuse a <a href="https://ra-yavuz.github.io/hydra-llm/">hydra-llm</a> embedder by id.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Warm embedder daemon</h3>
+    <p>A small per-user process keeps the embedder loaded behind a <code>~/.cache/hydra-llm/rag-hooks/embedder.sock</code> Unix domain socket. First triggered turn pays cold-start; subsequent turns are sub-second. Idles out after 30 min by default.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Cross-folder federation</h3>
+    <p><code>rag@work: &lt;q&gt;</code> retrieves across every store you tagged <code>work</code>. <code>rag@all: &lt;q&gt;</code> hits every registered store. Reciprocal Rank Fusion picks the best chunks across the merged lists.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Optional hydra-llm bridges</h3>
+    <p>Standalone is the default. Optional opt-in: reuse a <a href="https://ra-yavuz.github.io/hydra-llm/">hydra-llm</a> embedder so the two tools stop duplicating ~80 MB of ONNX cache, and read existing <code>.hydra-index/</code> stores. Neither tool triggers the other; each keeps its own indexes.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Share indexes (export / import)</h3>
+    <p><code>crh export</code> bundles a project's index into a portable <code>.crh.tar.zst</code>. A colleague <code>cd</code>s into their checkout, runs <code>crh import &lt;file&gt;</code>, and skips the indexing cost: the next <code>rag &lt;q&gt;</code> retrieves immediately. Bundle contains embeddings, chunked text, and file manifest only; no source code.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">MCP server (model-decided retrieval)</h3>
+    <p>v0.6 ships a stdio MCP server alongside the keyword hook. Claude calls <code>rag_search</code> when it judges retrieval would help and the user did not type the keyword (or the keyword retrieval was thin). On by default; toggle with <code>crh mcp off</code>.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Auto-rag mode (no keyword needed)</h3>
+    <p>Type <code>/rag-toggle</code> inside Claude Code to flip auto-rag on. Every subsequent prompt becomes a <code>rag &lt;prompt&gt;</code> query, no keyword required. Slash commands and very short prompts pass through untouched. Persistent across sessions.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Survives Claude Code updates</h3>
+    <p>Claude Code's self-update never touches <code>/etc/claude-code/managed-settings.json</code> or <code>~/.claude.json</code>, so the hook entry and MCP server entry stay wired. The hook also re-registers itself on every run as a belt-and-braces idempotent recovery.</p>
+  </div>
+
+</div>
+
+<h2>Configuration (optional)</h2>
+
+<p>Single YAML file at <code>~/.config/hydra-llm/rag-hooks/config.yaml</code>. Defaults are inlined; a missing file is not an error. Override only what you need:</p>
+
+<pre><code>triggers:
+  - "rag:"
+  - "/rag"
+lax_trigger: true                # accept "rag &lt;q&gt;" without the colon
+top_k: 5
+retrieval:
+  timeout_seconds: 8             # max time the hook will hold Claude on retrieval
+embedder:
+  kind: fastembed
+  model: BAAI/bge-small-en-v1.5     # default since v0.5.0
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  document_prefix: ""               # BGE: no prefix on documents
+  fastembed_batch_size: 4
+  # To use the previous default (nomic, higher quality, 4x more RAM):
+  # model: nomic-ai/nomic-embed-text-v1.5
+  # query_prefix: "search_query: "
+  # document_prefix: "search_document: "
+  # Or for an OpenAI-compatible local server:
+  # kind: openai-compatible
+  # base_url: http://127.0.0.1:19080
+  # Or to reuse a hydra-llm embedder by id:
+  # kind: hydra-llm
+  # hydra_id: nomic-embed-text
+chunking:
+  target_chars: 1500
+  overlap_chars: 200
+walker:
+  max_file_size_mb: 1
+  respect_gitignore: true
+daemon:
+  idle_ttl_seconds: 1800
+  enabled: true
+notifications:
+  on_index_complete: true        # desktop notification (notify-send) on first index</code></pre>
+
+<h2>Operator CLI: <code>crh</code></h2>
+
+<p>apt install puts a <code>crh</code> binary on <code>$PATH</code>. The hook handles everything inside Claude Code; <code>crh</code> is for the operator side: watch indexing progress, run blocking refreshes for scripts, query the store, manage the auto-refresh daemon, diagnose the install.</p>
+
+<pre><code>crh status                  # one-liner state of the cwd's index
+crh status --watch          # live-redrawing progress display until done
+crh status --all            # state of every registered store
+crh index [path]            # blocking initial index, with progress bar
+crh refresh [path]          # blocking incremental refresh
+crh query "retry policy"    # one-shot retrieval to stdout
+crh ls                      # list registered stores
+crh tag &lt;path&gt; work         # tag for `rag@work: &lt;q&gt;` federation
+crh forget &lt;path&gt;           # delete an index, with confirmation
+crh doctor                  # diagnose: model cache, embedder, hook wiring
+
+crh rag on|off|toggle|status     # auto-rag mode (every prompt becomes a `rag` query)
+crh mcp on|off|toggle|status     # MCP server (model-decided retrieval)
+
+crh export [path] [-o out]       # bundle the project's index into a portable archive
+crh import &lt;bundle&gt; [path]       # install a bundle from a colleague</code></pre>
+
+<h3 style="margin-top: 24px;">Share an index between machines</h3>
+
+<p>Indexing a large monorepo can take minutes to hours. If a colleague has already indexed it, they can hand you the result so you do not have to pay the cost again. The bundle holds embeddings, chunked text, and the file manifest; no source code (the trust boundary is still the source repo).</p>
+
+<pre><code># Sender. From inside the indexed project:
+cd ~/regurio-monorepo
+crh export
+# -&gt; exported /home/alice/regurio-monorepo to
+#    ./regurio-monorepo.BAAI-bge-small-en-v1.5.v1.20260509-093850.crh.tar.zst (71.4 MB)
+
+# Or pick where the file lands:
+crh export --output ~/share/
+
+# Receiver. apt install hydra-rag-hooks, cd into their checkout, run import:
+cd ~/regurio-monorepo
+crh import ~/Downloads/regurio-monorepo.BAAI-bge-small-en-v1.5.v1.20260509-093850.crh.tar.zst
+# -&gt; imported into /home/bob/regurio-monorepo/.hydra-index
+#    registered in stores.json; type `rag &lt;question&gt;` to use it.</code></pre>
+
+<p>The receiver's <strong>current working directory</strong> is the destination, not anything baked into the bundle (the bundle records the sender's project name for display only). The receiver's checkout can be at a different path, or even renamed; pass an explicit second argument to override. The next <code>rag &lt;q&gt;</code> retrieves from the borrowed index immediately. Embedder compatibility is preserved per-index via <code>meta.yaml</code>: a bundle built with a different embedder than the receiver's local default still works (the retrieval path picks the right embedder per-index), and <code>crh import</code> prints a one-line heads-up when that happens.</p>
+
+<p>Format is <code>tar+zstd</code> when <code>zstd</code> is on PATH, falling back to <code>tar+gzip</code>. <code>crh import</code> refuses to overwrite an existing populated <code>.hydra-index/</code> without <code>--force</code>, validates path-traversal entries, and registers the new store in <code>~/.local/state/hydra-llm/rag-hooks/stores.json</code>.</p>
+
+<p><strong>Auto-refresh daemon</strong> (off by default, opt-in):</p>
+
+<pre><code>crh refresher start         # systemctl --user enable --now
+crh refresher stop
+crh auto on [path]          # opt this project in
+crh auto off [path]         # opt out</code></pre>
+
+<p>The refresher is a per-user systemd unit running at <code>Nice=19</code>, <code>CPUSchedulingPolicy=idle</code>, <code>IOSchedulingClass=idle</code>, with a 60-second post-change quiet period and a hard 5-minute floor between refreshes per project. It only watches projects you explicitly opted in (a marker file inside the index dir).</p>
+
+<p><strong>Resilience.</strong> Indexer runs persist their file manifest on a throttled checkpoint cadence (every 16 files / 2 seconds), atomically. If the indexer is killed mid-flight (kill, OOM, system crash, power loss), <code>crh refresh</code> resumes from the last checkpoint instead of re-indexing already-completed files. <code>crh status</code> reports the <code>[interrupted]</code> state when this happens so you can decide between resuming and starting over.</p>
+
+<h2>How it works under the hood</h2>
+
+<p>A few mechanics worth knowing, especially if the tool surprises you.</p>
+
+<ul class="tight">
+  <li><strong>The hook is synchronous.</strong> Claude Code calls it on every prompt and waits for it to finish before sending the prompt to Claude. The retrieval path is wall-clock-capped at <code>retrieval.timeout_seconds</code> (default 8s); cold-start fastembed model loads can exceed that on the first call after boot, so the hook gives up cleanly and Claude answers without retrieved context. Retry usually works (1-3s).</li>
+  <li><strong>Indexing is fork-detached.</strong> The hook forks a child, calls <code>setsid</code>, redirects stdio to <code>~/.cache/hydra-llm/rag-hooks/indexer.log</code>, and the parent returns to Claude immediately. <strong>Cancelling your Claude prompt does not kill the indexer</strong>: it has already detached. To stop one: <code>pgrep -af claude_rag_hook</code> and <code>kill</code>.</li>
+  <li><strong>Progress and discoverability.</strong> While indexing runs, <code>&lt;scope&gt;/.hydra-index/.progress</code> gets updated; bare <code>rag</code> reports it. Non-rag prompts also get a small "[hydra-rag-hooks] heads-up: still indexing..." banner prepended so Claude (and you) are not in the dark. On first-index completion, the hook fires <code>notify-send</code> if it is on PATH (refreshes stay quiet).</li>
+</ul>
+
+<h2>Pairs with hydra-llm</h2>
+
+<p><a href="https://ra-yavuz.github.io/hydra-llm/">hydra-llm</a> is the sibling project for running local LLMs with RAG built in. The two tools are designed to play together but are <strong>fully independent</strong>: each writes to its own index folder and neither auto-triggers the other.</p>
+
+<p>Two opt-in integration points:</p>
+
+<ul class="tight">
+  <li><strong>Embedder reuse.</strong> Set <code>embedder.kind: hydra-llm</code> and <code>embedder.hydra_id: &lt;id&gt;</code>. The hook reads <code>~/.config/hydra-llm/embedders.yaml</code>, asks <code>hydra-llm rag info &lt;id&gt;</code> for the runtime port, and calls <code>/v1/embeddings</code>. The hook never starts or stops the container; you run <code>hydra-llm</code> normally.</li>
+  <li><strong>Store reuse (read-only).</strong> If a folder has a <code>.hydra-index/</code> instead of (or alongside) a <code>.hydra-index/</code>, the hook reads it transparently when walking up looking for an index. hydra-llm users do not have to re-index for Claude Code.</li>
+</ul>
+
+<p>What does <strong>not</strong> happen automatically:</p>
+
+<ul class="tight">
+  <li>Indexing one folder with hydra-llm does <strong>not</strong> create a <code>.hydra-index/</code> there. hydra-rag-hooks only writes to its own directory.</li>
+  <li>Indexing with hydra-rag-hooks does <strong>not</strong> create a <code>.hydra-index/</code>. The interop is one-way: this hook reads hydra's stores; hydra does not (currently) read this hook's stores.</li>
+  <li>Running <code>hydra-llm</code> against project A while you have a Claude session in project B has no effect on B's index. Indexes are per-folder and isolated.</li>
+</ul>
+
+<h2>Privacy</h2>
+
+<ul class="tight">
+  <li>The hook reads files inside any project folder it auto-indexes and stores chunked text plus embeddings of those files at <code>&lt;project-root&gt;/.hydra-index/</code>.</li>
+  <li>The hook injects retrieved chunks into the prompt that is sent to Anthropic. <strong>Indexed material is shipped to Claude when retrieval triggers.</strong> Indexes never leave your machine on their own, but retrieval results do, because that is the entire point. Audit what your project folders contain.</li>
+  <li>The warm embedder daemon runs as your user. The socket lives under <code>~/.cache/hydra-llm/rag-hooks/</code> with mode 0700 / 0600.</li>
+  <li>No telemetry. No analytics. No auto-update calls. The hook does not phone home.</li>
+</ul>
+
+<h2>Where things live</h2>
+
+<table>
+  <tbody>
+    <tr><td><code>/usr/lib/hydra-rag-hooks/hydra-rag-hooks-hook</code></td><td>the binary Claude Code invokes (off <code>$PATH</code>; you never type it directly)</td></tr>
+    <tr><td><code>/etc/claude-code/managed-settings.json</code></td><td>where the hook entry lives, system-wide, written by apt postinst</td></tr>
+    <tr><td><code>~/.config/hydra-llm/rag-hooks/config.yaml</code></td><td>user config (optional, defaults inlined)</td></tr>
+    <tr><td><code>~/.cache/hydra-llm/rag-hooks/embedder.sock</code></td><td>warm embedder daemon UDS</td></tr>
+    <tr><td><code>~/.cache/hydra-llm/rag-hooks/indexer.log</code></td><td>indexer stderr / tracebacks</td></tr>
+    <tr><td><code>~/.local/state/hydra-llm/rag-hooks/stores.json</code></td><td>per-user registry of indexed folders</td></tr>
+    <tr><td><code>&lt;project-root&gt;/.hydra-index/</code></td><td>per-folder LanceDB + meta.yaml + files.json + .progress</td></tr>
+  </tbody>
+</table>
+
+<h2>Platform support</h2>
+
+<p>Linux is the primary target (Debian, Ubuntu, Fedora, Arch). The hook works anywhere Claude Code itself runs, with the caveat that auto-wiring of <code>/etc/claude-code/managed-settings.json</code> is shipped only via the Debian / Ubuntu apt package; on other systems you wire it into <code>~/.claude/settings.json</code> by hand. Source install (<code>git clone</code>) ships the <code>hydra-rag-hooks-admin</code> tool that does the same merge against any settings path you point it at.</p>
+
+<hr class="soft">
+
+<h2 id="disclaimer">Full disclaimer</h2>
+
+<p>This software is a hook into <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a> that reads files inside any project directory it auto-indexes and stores chunked text plus embeddings of them at <code>&lt;directory&gt;/.hydra-index/</code>, runs a small persistent embedder daemon as your user, and (when retrieval triggers) injects retrieved chunks into the prompt that Claude Code sends to Anthropic. The apt package merges a hook entry into <code>/etc/claude-code/managed-settings.json</code>, which Claude Code reads for every user on the machine. It is provided <strong>as is, without warranty of any kind</strong>, express or implied, including but not limited to merchantability, fitness for a particular purpose, and noninfringement.</p>
+
+<p>By installing or running this software you accept that:</p>
+
+<ul class="tight">
+  <li>You alone are responsible for any damage to your hardware, data, network, or system.</li>
+  <li>The author(s) and contributors are <strong>not liable</strong> for any harm, data loss, hardware failure, security incident, model output, voided warranty, or other damages, however caused.</li>
+  <li>This tool is specifically designed to send local content to a third-party LLM (Anthropic's Claude). When auto-index runs, the hook reads files in your project folder and stores embeddings of them locally. When retrieval triggers, retrieved chunks are sent to Anthropic. The auto-index safety rails ($HOME / system-path refusal, project-marker requirement, 20k-file / 500MB cap) are belt and braces, not a guarantee. <strong>Audit what your project folders contain.</strong></li>
+  <li>The apt postinst writes <code>/etc/claude-code/managed-settings.json</code>, which Claude Code reads for every user on the machine. If you do not want machine-wide effect, do not install via apt; use <code>hydra-rag-hooks-admin install</code> against your own <code>~/.claude/settings.json</code> instead.</li>
+  <li>The warm embedder daemon runs as your user; a misconfigured config file or a malicious process able to write to it could be used to exfiltrate retrieval results.</li>
+  <li>LLM outputs are unreliable. Claude can hallucinate, repeat training data, give incorrect medical/legal/financial advice, and produce harmful or biased content. RAG <em>reduces</em> hallucination but does not eliminate it; the model can still misquote retrieved chunks. <strong>Do not rely on Claude's answers for safety-critical decisions.</strong></li>
+  <li>Embedder model weights downloaded by the default <code>fastembed</code> backend (or by the optional hydra-llm backend) are governed by their own upstream licenses. You are responsible for complying with each model's license.</li>
+</ul>
+
+<p>If you do not accept these terms, do not install or run this software.</p>
+
+<p>Full legal license: <a href="https://github.com/ra-yavuz/hydra-rag-hooks/blob/main/LICENSE">MIT</a>.</p>
+
+<h2>Source</h2>
+<ul class="tight">
+  <li>Code: <a href="https://github.com/ra-yavuz/hydra-rag-hooks">github.com/ra-yavuz/hydra-rag-hooks</a></li>
+  <li>Releases: <a href="https://github.com/ra-yavuz/hydra-rag-hooks/releases">github.com/ra-yavuz/hydra-rag-hooks/releases</a></li>
+  <li>Design notes: <a href="https://github.com/ra-yavuz/hydra-rag-hooks/blob/main/DESIGN.md">DESIGN.md</a></li>
+  <li>Other ra-yavuz projects: <a href="https://ra-yavuz.github.io/">ra-yavuz.github.io</a></li>
+</ul>
+
+<p style="margin-top: 60px; font-size: 0.85rem; color: var(--muted);">
+  &copy; 2026 Ramazan Yavuz. MIT-licensed. No warranty.
+</p>
+
+
+<p style="font-size:0.78rem;opacity:0.7;margin-top:14px;line-height:1.6;">
+  This page does not use cookies, tracking, or analytics. Outbound links lead to third-party websites outside our control; we are not liable for their content or privacy practices.
+</p>
+</main>
+</body>
+</html>

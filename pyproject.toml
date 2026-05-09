@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydra-rag-hooks"
+version = "0.1.0"
+description = "Keyword-triggered local RAG hooks for Claude Code AND OpenAI's Codex CLI. Type 'rag <question>' in either CLI; the hook prepends retrieved chunks from a local LanceDB index before the model sees the prompt. Single shared index across both CLIs and the sibling hydra-llm project."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Ramazan Yavuz", email = "yavuzramazan1994@gmail.com" }]
+keywords = [
+    "claude",
+    "claude-code",
+    "codex",
+    "openai-codex",
+    "rag",
+    "retrieval-augmented-generation",
+    "embeddings",
+    "vector-search",
+    "lancedb",
+    "fastembed",
+    "local-first",
+    "anthropic",
+    "openai",
+    "hook",
+    "hydra",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "pathspec>=0.11",
+    "lancedb>=0.6",
+    "pyarrow>=14",
+]
+
+[project.optional-dependencies]
+fastembed = ["fastembed>=0.3"]
+http = ["httpx>=0.25"]
+
+[project.urls]
+Homepage = "https://ra-yavuz.github.io/hydra-rag-hooks/"
+Source = "https://github.com/ra-yavuz/hydra-rag-hooks"
+Releases = "https://github.com/ra-yavuz/hydra-rag-hooks/releases"
+Issues = "https://github.com/ra-yavuz/hydra-rag-hooks/issues"
+
+[tool.setuptools]
+package-dir = { "" = "lib" }
+
+[tool.setuptools.packages.find]
+where = ["lib"]
+include = ["hydra_rag_hooks*"]

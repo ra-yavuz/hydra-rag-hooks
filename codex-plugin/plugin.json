@@ -1,0 +1,16 @@
+{
+  "name": "hydra-rag-hooks",
+  "version": "0.1.0",
+  "description": "Keyword-triggered local RAG for Codex CLI. Type `rag <q>` and the hook prepends retrieved chunks from a per-folder LanceDB index before the model sees the prompt. Companion bundled MCP server (rag_search, rag_status, rag_list_stores) for model-decided retrieval.",
+  "author": {
+    "name": "Ramazan Yavuz",
+    "email": "yavuzramazan1994@gmail.com",
+    "url": "https://ramazan-yavuz.tr"
+  },
+  "homepage": "https://ra-yavuz.github.io/hydra-rag-hooks/",
+  "repository": "https://github.com/ra-yavuz/hydra-rag-hooks",
+  "license": "MIT",
+  "keywords": ["rag", "retrieval-augmented-generation", "codex", "openai-codex", "lancedb", "fastembed", "local-first"],
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

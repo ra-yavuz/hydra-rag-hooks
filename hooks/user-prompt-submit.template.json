@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "name": "hydra-rag-hooks",
+        "command": "hydra-rag-hooks hook",
+        "description": "Keyword-triggered local RAG: 'rag: <q>' prepends retrieved chunks."
+      }
+    ]
+  }
+}

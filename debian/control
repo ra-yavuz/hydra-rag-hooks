@@ -1,0 +1,60 @@
+Source: hydra-rag-hooks
+Section: utils
+Priority: optional
+Maintainer: Ramazan Yavuz <yavuzramazan1994@gmail.com>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all
+Standards-Version: 4.6.2
+Homepage: https://ra-yavuz.github.io/hydra-rag-hooks/
+Vcs-Git: https://github.com/ra-yavuz/hydra-rag-hooks.git
+Vcs-Browser: https://github.com/ra-yavuz/hydra-rag-hooks
+Rules-Requires-Root: no
+
+Package: hydra-rag-hooks
+Architecture: all
+Depends: ${misc:Depends},
+ python3 (>= 3.10),
+ python3-yaml,
+ python3-numpy,
+ python3-pathspec
+Recommends: python3-pip
+Suggests: hydra-llm
+Description: keyword-triggered local RAG hooks for Claude Code AND Codex CLI
+ Type "rag <question>" inside either Claude Code or OpenAI's Codex CLI;
+ the hook embeds the query, retrieves the top relevant chunks from a
+ local LanceDB index of your project folder, and prepends them to the
+ prompt before the model sees it. Local-first; the model never has to
+ "decide" whether to retrieve, so there is no per-prompt token overhead
+ on prompts that do not start with the trigger.
+ .
+ Two CLIs, one shared index. The same .hydra-index/ folder works for
+ Claude Code AND Codex CLI. The folder name is also what the sibling
+ hydra-llm project uses, so all three tools cooperate on the same
+ store. Existing claude-rag-hook v0.6 indexes (.claude-rag-index/)
+ are auto-renamed in place on first run.
+ .
+ Auto-indexing on first use: the first "rag" inside a project folder
+ (one with a .git, pyproject.toml, package.json, or similar marker)
+ fork-detaches a background indexer; the next "rag" retrieves
+ normally. Hard refusals on $HOME, /etc, /var, etc., and a 20k-file /
+ 500MB cap protect against accidental indexing of large or sensitive
+ trees.
+ .
+ Claude Code install: zero-touch. apt install merges a hook entry into
+ /etc/claude-code/managed-settings.json; every user on the machine
+ picks it up on the next Claude Code session.
+ Codex CLI install: per-user opt-in. After apt install, run
+ "codex plugin add /usr/lib/hydra-rag-hooks/codex-plugin" once per user
+ to enable the Codex hook + bundled MCP server.
+ .
+ The fastembed embedder (default) is not packaged for Debian; install
+ it via pip if missing: pip install --user fastembed lancedb pyarrow.
+ Or pick a different embedder backend (OpenAI-compatible local server,
+ hydra-llm interop) in ~/.config/hydra-llm/rag-hooks/config.yaml.
+ .
+ DISCLAIMER: provided AS IS, no warranty. Reads files inside any folder
+ it indexes and stores chunked text plus embeddings of those files at
+ <folder>/.hydra-index/. Retrieved chunks are sent to the third-party
+ LLM provider (Anthropic for Claude Code, OpenAI for Codex CLI) when
+ "rag" fires. The author is not liable for any damage to data,
+ hardware, system, or for the content of model output. Audit what you
+ index. See /usr/share/doc/hydra-rag-hooks/README.md.

@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+# crh: hydra-rag-hooks command-line tool.
+#
+# Operator-facing companion to the UserPromptSubmit hook. The hook is
+# the integration point with Claude Code; crh is for everything you
+# want to do from a shell - watch indexing progress, kick off
+# refreshes, query the store, manage tags, run the auto-refresher
+# daemon, diagnose problems.
+#
+# Lives on $PATH at /usr/bin/crh, installed via debian/install.
+
+import os
+import sys
+
+
+def _bootstrap_sys_path() -> None:
+    # Same pattern as the other bin entrypoints: prefer the package
+    # next to this script over a possibly-stale system install.
+    here = os.path.dirname(os.path.realpath(__file__))
+    for c in (here,
+              os.path.normpath(os.path.join(here, "..", "lib")),
+              "/usr/lib/hydra-rag-hooks"):
+        if os.path.isdir(os.path.join(c, "hydra_rag_hooks")):
+            if c not in sys.path:
+                sys.path.insert(0, c)
+            return
+
+
+_bootstrap_sys_path()
+
+from hydra_rag_hooks.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(main())

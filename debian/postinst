@@ -1,0 +1,94 @@
+#!/bin/sh
+# postinst for hydra-rag-hooks
+#
+# Wires the hook into Claude Code by merging an entry into
+# /etc/claude-code/managed-settings.json. That file is read by Claude
+# Code for every user on the machine, with the highest precedence in
+# the settings layer, so this is true zero-touch: install the package,
+# every user gets the hook on their next Claude Code session.
+#
+# We do not edit any per-user ~/.claude/settings.json. Per-user files
+# belong to the user; package code does not write to them.
+set -e
+
+ADMIN=/usr/lib/hydra-rag-hooks/hydra-rag-hooks-admin
+HOOK=/usr/lib/hydra-rag-hooks/hydra-rag-hooks-claude-hook
+CODEX_PLUGIN_DIR=/usr/lib/hydra-rag-hooks/codex-plugin
+MODELS_DIR=/var/cache/hydra-llm/models
+LEGACY_MODELS_DIR=/var/cache/claude-rag-hook/models
+
+case "$1" in
+    configure)
+        if [ -x "$ADMIN" ]; then
+            # Idempotent: install merges, does not duplicate.
+            "$ADMIN" install --command "$HOOK" \
+                --settings /etc/claude-code/managed-settings.json \
+                || echo "hydra-rag-hooks: failed to wire hook into managed-settings.json (will be retried on next reconfigure)" >&2
+        fi
+
+        # Machine-wide model cache, shared across the hydra-* family.
+        # Lives at /var/cache/hydra-llm/models/ so this package and the
+        # sibling hydra-llm package share one ~67-150MB ONNX download.
+        # Mode 2775 + group adm so any local user can read; group-write
+        # so the first user to download fills it for everyone.
+        mkdir -p "$MODELS_DIR"
+        chgrp adm "$MODELS_DIR" 2>/dev/null || true
+        chmod 2775 "$MODELS_DIR" 2>/dev/null || true
+
+        # Migrate any pre-existing /var/cache/claude-rag-hook/models/
+        # contents into the new shared location so an upgrade from
+        # claude-rag-hook v0.6 doesn't redownload models. We rsync
+        # rather than mv so a partial copy doesn't lose data on a
+        # cross-mount edge case.
+        if [ -d "$LEGACY_MODELS_DIR" ] && [ "$LEGACY_MODELS_DIR" != "$MODELS_DIR" ]; then
+            cp -an "$LEGACY_MODELS_DIR"/. "$MODELS_DIR"/ 2>/dev/null || true
+        fi
+
+        # Best-effort pre-fetch: if fastembed is importable in the
+        # system Python (i.e. someone already pip-installed it), warm
+        # the cache so the first `rag <q>` is fast. Network failures,
+        # missing fastembed, or any other error are silently OK; the
+        # hook's runtime auto-recovery will handle a missing model on
+        # first use.
+        if command -v python3 >/dev/null 2>&1; then
+            python3 - "$MODELS_DIR" <<'PYEOF' >/dev/null 2>&1 || true
+import sys
+try:
+    from fastembed import TextEmbedding
+except Exception:
+    sys.exit(0)
+try:
+    TextEmbedding(model_name="BAAI/bge-small-en-v1.5", cache_dir=sys.argv[1])
+except Exception:
+    sys.exit(0)
+PYEOF
+        fi
+
+        # Codex CLI: per-user opt-in, since Codex has no system-wide
+        # plugin install path. Print the one-line enable command.
+        if [ -d "$CODEX_PLUGIN_DIR" ]; then
+            cat <<EOF
+
+hydra-rag-hooks is wired into Claude Code automatically.
+
+To also enable it for OpenAI Codex CLI, each user runs once:
+    codex plugin add $CODEX_PLUGIN_DIR
+
+This adds the hydra-rag-hooks UserPromptSubmit hook and bundled MCP server
+to that user's ~/.codex/config.toml. Equivalent reverse: codex plugin remove
+hydra-rag-hooks. The Claude Code wiring is system-wide and unaffected.
+
+EOF
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

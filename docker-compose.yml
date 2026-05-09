@@ -1,0 +1,36 @@
+# claude-rag-hook dev sandbox.
+#
+# Quick start:
+#
+#   docker compose up -d
+#   docker compose exec dev bash
+#
+# Inside, claude-rag-hook is installed in editable mode against the
+# mounted source. Use /workspace as scratch (mounted from ./WORKINGDIR).
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: claude-rag-hook:dev
+    volumes:
+      - .:/opt/claude-rag-hook
+      - ./WORKINGDIR:/workspace
+      - ${HOME}/.config/claude-rag-hook:/root/.config/claude-rag-hook
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    entrypoint:
+      - bash
+      - -c
+      - |
+        pip install --quiet -e /opt/claude-rag-hook
+        echo "claude-rag-hook dev sandbox"
+        echo "  source: /opt/claude-rag-hook (host: $$(pwd))"
+        echo "  scratch: /workspace (host: ./WORKINGDIR)"
+        echo "  try: claude-rag-hook --help"
+        exec bash

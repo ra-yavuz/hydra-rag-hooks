@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+# hydra-rag-hooks-admin: internal admin tool used by the .deb's postinst
+# / postrm to wire the hook into Claude Code's managed settings.
+#
+# Not on $PATH. Lives at /usr/lib/hydra-rag-hooks/hydra-rag-hooks-admin.
+# End users do not need to call this; the package handles it during apt
+# install / remove. Documented for transparency only.
+
+import os
+import sys
+
+
+def _bootstrap_sys_path() -> None:
+    # Use the FIRST candidate that has the package, not all of them. A
+    # half-installed older package at /usr/lib/hydra-rag-hooks/ must not
+    # shadow the package shipped next to this script.
+    here = os.path.dirname(os.path.realpath(__file__))
+    for c in (here,
+              os.path.normpath(os.path.join(here, "..", "lib")),
+              "/usr/lib/hydra-rag-hooks"):
+        if os.path.isdir(os.path.join(c, "hydra_rag_hooks")):
+            if c not in sys.path:
+                sys.path.insert(0, c)
+            return
+
+
+_bootstrap_sys_path()
+
+from hydra_rag_hooks.admin import main  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(main())

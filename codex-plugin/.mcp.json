@@ -1,0 +1,8 @@
+{
+  "mcp_servers": {
+    "hydra-rag": {
+      "command": "/usr/lib/hydra-rag-hooks/hydra-rag-mcp",
+      "args": []
+    }
+  }
+}

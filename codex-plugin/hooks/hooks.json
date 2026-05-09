@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "name": "hydra-rag-hooks",
+        "command": "/usr/lib/hydra-rag-hooks/hydra-rag-hooks-codex-hook",
+        "description": "Keyword-triggered local RAG: type 'rag <q>' and the hook prepends retrieved chunks from a per-folder LanceDB index before Codex sees the prompt."
+      }
+    ]
+  }
+}

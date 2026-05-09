@@ -1,0 +1,42 @@
+hydra-rag-hooks (0.1.0-1) unstable; urgency=medium
+
+  * Initial release.
+  * Successor to claude-rag-hook (v0.6.x). Same keyword-triggered
+    UserPromptSubmit hook design, now extended to support BOTH Claude
+    Code and OpenAI's Codex CLI from a single package. The two hooks
+    share state: same on-disk index, same embedder cache, same
+    toggles.json (so flipping auto-rag mode on flips it for both
+    CLIs), same MCP server.
+  * Unified family layout. Per-user state lives at
+    ~/.config/hydra-llm/rag-hooks/, ~/.cache/hydra-llm/rag-hooks/,
+    ~/.local/state/hydra-llm/rag-hooks/. Existing
+    ~/.config/claude-rag-hook/ trees are migrated in place on first
+    invocation. The model cache is shared across the hydra-* family
+    at /var/cache/hydra-llm/models/ (with one-shot copy from the
+    legacy /var/cache/claude-rag-hook/models/ if present).
+  * Index folder renamed from .claude-rag-index/ to .hydra-index/.
+    Existing folders are auto-renamed in place on first hook run;
+    embeddings and chunks survive the rename byte-for-byte. The new
+    name matches what hydra-llm has always used, so all three tools
+    now share one index folder by default. The legacy name is still
+    read transparently for one or two minor versions before being
+    removed.
+  * New: Codex CLI hook (UserPromptSubmit). Codex's envelope shape
+    differs from Claude Code's, so we ship a separate adapter at
+    bin/hydra-rag-hooks-codex-hook that wraps the same retrieval and
+    indexing pipeline. Codex install is per-user opt-in via
+    `codex plugin add /usr/lib/hydra-rag-hooks/codex-plugin` (Codex
+    has no managed-settings system-wide install path; this is the
+    documented way).
+  * Inherits from claude-rag-hook v0.6.1: bundled MCP server,
+    auto-rag toggle, /rag-toggle slash command, crh export/import
+    for sharing indexes, retrieval safety on daemon-spawn failure,
+    safety guards on ~/.claude.json and user-owned slash command
+    files, path-traversal-safe import. See the v0.6.0 and v0.6.1
+    sections of the claude-rag-hook changelog for the original
+    features. Recommended migration path: apt remove claude-rag-hook
+    after `apt install hydra-rag-hooks` (or wait for the
+    claude-rag-hook v0.7.0 transitional shim that auto-pulls this
+    package).
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Sat, 09 May 2026 14:00:00 +0000

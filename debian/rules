@@ -1,0 +1,6 @@
+#!/usr/bin/make -f
+# Build with debhelper if available; otherwise see scripts/build-deb.sh
+# for the no-debhelper path.
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild

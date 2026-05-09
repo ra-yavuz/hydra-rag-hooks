@@ -1,0 +1,72 @@
+#!/bin/sh
+# postrm for hydra-rag-hooks
+#
+# On remove and on purge, take our entry out of
+# /etc/claude-code/managed-settings.json so a stale `command` path doesn't
+# remain after the binary is gone. Leaves any other entries (other tools,
+# admin policies) alone.
+set -e
+
+ADMIN=/usr/lib/hydra-rag-hooks/hydra-rag-hooks-admin
+HOOK=/usr/lib/hydra-rag-hooks/hydra-rag-hooks-claude-hook
+MODELS_DIR=/var/cache/hydra-rag-hooks/models
+
+case "$1" in
+    remove|purge)
+        # On purge, also drop the machine-wide model cache. On a plain
+        # remove (without purge) we leave it so an apt reinstall is
+        # fast (no re-download of the ~80MB ONNX).
+        if [ "$1" = "purge" ] && [ -d "$MODELS_DIR" ]; then
+            rm -rf "$MODELS_DIR"
+            rmdir /var/cache/hydra-rag-hooks 2>/dev/null || true
+        fi
+        # On remove, the package's binaries are about to be deleted, so
+        # leaving a settings entry pointing at /usr/lib/hydra-rag-hooks/
+        # would be a stale command. Best-effort: try the admin tool if it
+        # is still present (true on a remove, becomes false after purge
+        # on some systems), else fall back to a tiny inline cleanup.
+        if [ -x "$ADMIN" ]; then
+            "$ADMIN" uninstall --command "$HOOK" \
+                --settings /etc/claude-code/managed-settings.json \
+                2>/dev/null || true
+        elif [ -f /etc/claude-code/managed-settings.json ] && command -v python3 >/dev/null 2>&1; then
+            python3 - "$HOOK" /etc/claude-code/managed-settings.json <<'PYEOF' || true
+import json, pathlib, sys
+cmd, path = sys.argv[1], pathlib.Path(sys.argv[2])
+try:
+    data = json.loads(path.read_text() or "{}")
+except json.JSONDecodeError:
+    sys.exit(0)
+hooks = data.get("hooks") or {}
+matchers = hooks.get("UserPromptSubmit") or []
+if not isinstance(matchers, list):
+    sys.exit(0)
+new_matchers = []
+for m in matchers:
+    if not isinstance(m, dict):
+        new_matchers.append(m); continue
+    inner = [h for h in (m.get("hooks") or []) if not (isinstance(h, dict) and h.get("command") == cmd)]
+    if inner:
+        m["hooks"] = inner
+        new_matchers.append(m)
+if new_matchers:
+    hooks["UserPromptSubmit"] = new_matchers
+else:
+    hooks.pop("UserPromptSubmit", None)
+if not hooks:
+    data.pop("hooks", None)
+path.write_text(json.dumps(data, indent=2) + "\n")
+PYEOF
+        fi
+        ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

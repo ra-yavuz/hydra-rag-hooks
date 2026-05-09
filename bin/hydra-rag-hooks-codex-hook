@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+# hydra-rag-hooks-codex-hook: the UserPromptSubmit hook entrypoint that
+# OpenAI's Codex CLI invokes per the plugin manifest at
+# /usr/lib/hydra-rag-hooks/.codex-plugin/plugin.json.
+#
+# Lives at /usr/lib/hydra-rag-hooks/hydra-rag-hooks-codex-hook.
+# End users never invoke this directly; Codex CLI does.
+
+import os
+import sys
+
+
+def _bootstrap_sys_path() -> None:
+    here = os.path.dirname(os.path.realpath(__file__))
+    for c in (here,
+              os.path.normpath(os.path.join(here, "..", "lib")),
+              "/usr/lib/hydra-rag-hooks"):
+        if os.path.isdir(os.path.join(c, "hydra_rag_hooks")):
+            if c not in sys.path:
+                sys.path.insert(0, c)
+            return
+
+
+_bootstrap_sys_path()
+
+from hydra_rag_hooks.codex_hook import main  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(main())

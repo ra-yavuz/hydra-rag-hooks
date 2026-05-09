@@ -1,0 +1,43 @@
+[Unit]
+Description=hydra-rag-hooks auto-refresh daemon (per-user, off by default)
+Documentation=https://ra-yavuz.github.io/hydra-rag-hooks/
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/crh refresher run
+Restart=on-failure
+RestartSec=30s
+
+# Resource hygiene: yield to the user's foreground work.
+# Nice=19 is lowest CPU priority; ionice idle class only does I/O
+# when nothing else wants the disk; CPUSchedulingPolicy=idle puts
+# the daemon on the linux idle scheduler so it gets cycles only
+# when the system would otherwise be idle.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+
+# Hard memory ceilings so a runaway indexer fork never thrashes the
+# whole machine. fastembed loads ~300MB of ONNX; in-flight batches
+# can push to a few GB. MemoryHigh is soft (kernel reclaims first);
+# MemoryMax is the OOM trigger.
+MemoryHigh=2G
+MemoryMax=4G
+
+# CPUQuota=50% means the daemon sees at most half of one core.
+# Combined with the idle scheduler, this is a belt-and-suspenders
+# limit: if the scheduler ever decides to give us cycles, cap the
+# damage.
+CPUQuota=50%
+
+# No new privileges, modest sandboxing. The daemon is per-user so
+# it has no extra rights to begin with; these tighten what a bug
+# in our code could touch.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=%h
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
