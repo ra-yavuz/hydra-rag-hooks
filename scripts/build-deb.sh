@@ -94,6 +94,7 @@ Recommends: python3-pip
 Suggests: hydra-llm
 Replaces: claude-rag-hook (<< 0.7.0)
 Breaks: claude-rag-hook (<< 0.7.0)
+Conflicts: claude-rag-hook (<< 0.7.0)
 Maintainer: Ramazan Yavuz <yavuzramazan1994@gmail.com>
 Homepage: https://ra-yavuz.github.io/hydra-rag-hooks/
 Description: keyword-triggered local RAG hooks for Claude Code AND Codex CLI

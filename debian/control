@@ -20,6 +20,7 @@ Recommends: python3-pip
 Suggests: hydra-llm
 Replaces: claude-rag-hook (<< 0.7.0)
 Breaks: claude-rag-hook (<< 0.7.0)
+Conflicts: claude-rag-hook (<< 0.7.0)
 Description: keyword-triggered local RAG hooks for Claude Code AND Codex CLI
  Type "rag <question>" inside either Claude Code or OpenAI's Codex CLI;
  the hook embeds the query, retrieves the top relevant chunks from a

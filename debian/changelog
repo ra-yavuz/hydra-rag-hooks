@@ -1,3 +1,19 @@
+hydra-rag-hooks (0.1.2-1) unstable; urgency=high
+
+  * Critical fix: add Conflicts: claude-rag-hook (<< 0.7.0) so the
+    upgrade is fully automated. v0.1.1 declared Breaks/Replaces, which
+    let dpkg take ownership of /usr/bin/crh but left the old
+    claude-rag-hook in a half-configured state because apt's resolver
+    didn't schedule its upgrade or removal. Conflicts: forces apt to
+    remove the conflicting old package before unpacking, so the
+    transition is hands-off: a single `apt install hydra-rag-hooks`
+    on a machine with claude-rag-hook 0.5.0-1 (or any v0.6.x) cleanly
+    removes the old package and installs hydra-rag-hooks. Verified
+    end-to-end in a docker container starting from the exact pre-rename
+    state. Recommended for everyone; users on v0.1.1 should upgrade.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Sat, 09 May 2026 16:30:00 +0000
+
 hydra-rag-hooks (0.1.1-1) unstable; urgency=high
 
   * Critical install-blocker fix: declare Replaces/Breaks against
