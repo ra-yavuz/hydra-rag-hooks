@@ -41,20 +41,29 @@ def test_models_cache_dir_prefers_system_when_writable(tmp_path, monkeypatch):
 
 
 def test_models_cache_dir_falls_back_when_system_unwritable(tmp_path, monkeypatch):
-    # New system dir exists but is read-only; legacy system dir does
-    # not exist; fall through to user cache under hydra-llm family.
+    # New system dir exists but is unwritable from the calling user's
+    # perspective. We cannot reliably express "unwritable" via chmod
+    # alone (root-in-docker ignores read-only bits), so we mock
+    # os.access directly: this tests the function's contract, not
+    # whatever the filesystem permission model happens to be in CI.
+    import os as _os
     fake_system = tmp_path / "fake-system-models"
     fake_system.mkdir()
-    fake_system.chmod(0o555)
-    try:
-        monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-        monkeypatch.setattr(paths, "SYSTEM_MODELS_DIR", fake_system)
-        monkeypatch.setattr(paths, "LEGACY_SYSTEM_MODELS_DIR", tmp_path / "no-such-legacy-system-dir")
 
-        result = paths.models_cache_dir()
-        assert result == tmp_path / "hydra-llm" / "models"
-    finally:
-        fake_system.chmod(0o755)
+    real_access = _os.access
+
+    def fake_access(path, mode):
+        if str(path) == str(fake_system) and mode == _os.W_OK:
+            return False
+        return real_access(path, mode)
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setattr(paths, "SYSTEM_MODELS_DIR", fake_system)
+    monkeypatch.setattr(paths, "LEGACY_SYSTEM_MODELS_DIR", tmp_path / "no-such-legacy-system-dir")
+    monkeypatch.setattr(paths.os, "access", fake_access)
+
+    result = paths.models_cache_dir()
+    assert result == tmp_path / "hydra-llm" / "models"
 
 
 def test_models_cache_dir_uses_legacy_when_only_legacy_exists(tmp_path, monkeypatch):
