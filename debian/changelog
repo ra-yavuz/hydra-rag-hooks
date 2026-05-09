@@ -1,3 +1,20 @@
+hydra-rag-hooks (0.1.1-1) unstable; urgency=high
+
+  * Critical install-blocker fix: declare Replaces/Breaks against
+    claude-rag-hook (<< 0.7.0) so that dpkg accepts our /usr/bin/crh
+    over any older claude-rag-hook version still installed on the
+    machine. Without this, `apt install hydra-rag-hooks` on a
+    machine that still had claude-rag-hook 0.5.0-1 (or any v0.6.x
+    that has not yet upgraded to the v0.7.0 transitional shim) failed
+    with "trying to overwrite '/usr/bin/crh', which is also in
+    package claude-rag-hook". Recommended for everyone.
+  * The two-package migration path now works in any order: install
+    hydra-rag-hooks directly (file conflicts auto-resolved by dpkg),
+    or install claude-rag-hook v0.7.0 first (which pulls
+    hydra-rag-hooks as a dependency).
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Sat, 09 May 2026 15:30:00 +0000
+
 hydra-rag-hooks (0.1.0-1) unstable; urgency=medium
 
   * Initial release.

@@ -59,7 +59,7 @@ from .progress import read as read_progress, read_last_run, is_active
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "hydra-rag-hooks"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.1.1"
 
 
 # ---------------------------------------------------------------------------

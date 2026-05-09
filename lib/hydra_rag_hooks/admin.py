@@ -51,6 +51,16 @@ DEFAULT_HOOK_COMMAND = "/usr/lib/hydra-rag-hooks/hydra-rag-hooks-claude-hook"
 SYSTEM_SETTINGS = Path("/etc/claude-code/managed-settings.json")
 USER_SETTINGS = Path.home() / ".claude" / "settings.json"
 
+# Legacy hook commands that we remove from any managed-settings.json
+# we touch, so an upgrade from claude-rag-hook v0.6.x doesn't leave
+# the old binary path wired in alongside the new one. Each entry is
+# the absolute path of a hook that previous releases of the package
+# (under old names) installed; any matcher block referencing one of
+# these gets cleaned out before we add our own entry.
+LEGACY_HOOK_COMMANDS: tuple[str, ...] = (
+    "/usr/lib/claude-rag-hook/claude-rag-hook-hook",
+)
+
 
 def _backup(path: Path) -> Path | None:
     if not path.exists():
@@ -102,7 +112,17 @@ def install(command: str = DEFAULT_HOOK_COMMAND,
             f"{settings_path}: 'hooks.UserPromptSubmit' is not an array; refusing to modify."
         )
 
+    # Sweep any legacy claude-rag-hook entry from a previous package
+    # name. Pass-through if there's nothing to remove. Tracked
+    # separately from the install/no-install decision so we can write
+    # the file once even if the only change is the cleanup.
+    cleaned = _strip_legacy_hooks(matchers)
+
     if _has_our_entry(matchers, command):
+        if cleaned:
+            bak = _backup(settings_path)
+            _save(settings_path, data)
+            return settings_path, bak, True
         return settings_path, None, False
 
     matchers.append({
@@ -113,6 +133,38 @@ def install(command: str = DEFAULT_HOOK_COMMAND,
     bak = _backup(settings_path)
     _save(settings_path, data)
     return settings_path, bak, True
+
+
+def _strip_legacy_hooks(matchers: list[Any]) -> bool:
+    """Drop any matcher block whose only hook command is one of the
+    legacy claude-rag-hook paths. Returns True if anything changed.
+    Mutates `matchers` in place.
+    """
+    changed = False
+    i = 0
+    while i < len(matchers):
+        m = matchers[i]
+        if not isinstance(m, dict):
+            i += 1
+            continue
+        hooks = m.get("hooks") or []
+        if not isinstance(hooks, list):
+            i += 1
+            continue
+        new_hooks = [
+            h for h in hooks
+            if not (isinstance(h, dict) and h.get("command") in LEGACY_HOOK_COMMANDS)
+        ]
+        if len(new_hooks) != len(hooks):
+            changed = True
+            if new_hooks:
+                m["hooks"] = new_hooks
+                i += 1
+            else:
+                matchers.pop(i)
+                continue
+        i += 1
+    return changed
 
 
 def uninstall(command: str = DEFAULT_HOOK_COMMAND,
